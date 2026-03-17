@@ -67,5 +67,37 @@ class TestChecks(unittest.TestCase):
             self.assertEqual(s1, s2)
 
 
+class TestProfileDiscovery(unittest.TestCase):
+    def test_profiles_ini_prefers_locked_install_default(self):
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            (base / "aaaa.default").mkdir()
+            (base / "bbbb.default-release").mkdir()
+
+            ini = base / "profiles.ini"
+            ini.write_text(
+                """
+[InstallXYZ]
+Default=bbbb.default-release
+Locked=1
+
+[Profile0]
+Name=default
+IsRelative=1
+Path=aaaa.default
+Default=1
+
+[Profile1]
+Name=default-release
+IsRelative=1
+Path=bbbb.default-release
+""".lstrip(),
+                encoding="utf-8",
+            )
+
+            name, path = privaxxy.find_profile_from_profiles_ini(ini, None)
+            self.assertEqual(path.resolve(), (base / "bbbb.default-release").resolve())
+
+
 if __name__ == "__main__":
     unittest.main()

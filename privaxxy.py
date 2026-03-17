@@ -197,6 +197,34 @@ def find_profile_from_profiles_ini(
     if not candidates:
         return None, None
 
+    # If Firefox is configured with an install-specific locked default profile,
+    # prefer it over the per-profile Default=1 flag.
+    #
+    # Example (profiles.ini):
+    #   [InstallXXXX]
+    #   Default=abcd.default-release
+    #   Locked=1
+    if not profile_name:
+        locked_default_raw: Optional[str] = None
+        for sec in cp.sections():
+            if not sec.startswith("Install"):
+                continue
+            locked = cp.getint(sec, "Locked", fallback=0) == 1
+            default_raw = cp.get(sec, "Default", fallback="").strip()
+            if locked and default_raw:
+                locked_default_raw = default_raw
+                break
+
+        if locked_default_raw:
+            locked_p = (base / locked_default_raw).resolve()
+            for name, p, _default in candidates:
+                try:
+                    if p.resolve() == locked_p:
+                        return name, p
+                except Exception:
+                    continue
+            return None, locked_p
+
     if profile_name:
         for name, p, default in candidates:
             if name == profile_name:
